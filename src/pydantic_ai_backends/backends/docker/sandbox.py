@@ -298,8 +298,10 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
 
         return "\n".join(lines)
 
-    def execute(self, command: str, timeout: int | None = None) -> ExecuteResponse:
+    async def execute(self, command: str, timeout: int | None = None) -> ExecuteResponse:
         """Execute command in Docker container."""
+        import asyncio
+
         self._ensure_container()
         self._last_activity = time.time()  # Update activity timestamp
         assert self._container is not None  # Ensured by _ensure_container()
@@ -312,7 +314,8 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
             else:
                 exec_cmd = ["sh", "-c", command]
 
-            exit_code, output = self._container.exec_run(
+            exit_code, output = await asyncio.to_thread(
+                self._container.exec_run,
                 exec_cmd,
                 workdir=self._work_dir,
             )
@@ -337,7 +340,7 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
                 truncated=False,
             )
 
-    def _read_bytes(self, path: str) -> bytes:
+    async def _read_bytes(self, path: str) -> bytes:
         """Read raw bytes from file in container.
 
         Args:
@@ -377,7 +380,7 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
         except Exception:
             return b""
 
-    def read(self, path: str, offset: int = 0, limit: int = 2000) -> str:
+    async def read(self, path: str, offset: int = 0, limit: int = 2000) -> str:
         """
         Read file from container using Docker get_archive API.
 
@@ -390,7 +393,7 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
         path = self._resolve_path(path)
         try:
             # Read raw bytes from file
-            file_bytes = self._read_bytes(path)
+            file_bytes = await self._read_bytes(path)
             if not file_bytes:
                 return f"Error: File '{original_path}' not found"
 
@@ -549,7 +552,7 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
 
         return text.strip()
 
-    def edit(
+    async def edit(
         self, path: str, old_string: str, new_string: str, replace_all: bool = False
     ) -> EditResult:
         """Edit file using Python string operations instead of sed.
@@ -571,7 +574,7 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
         path = self._resolve_path(path)
         try:
             # Read the file content
-            file_bytes = self._read_bytes(path)
+            file_bytes = await self._read_bytes(path)
 
             if not file_bytes:
                 return EditResult(error=f"File '{original_path}' not found")
@@ -598,7 +601,7 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
             new_content = content.replace(old_string, new_string)
 
             # Write back the modified content
-            write_result = self.write(path, new_content)
+            write_result = await self.write(path, new_content)
 
             if write_result.error:
                 return EditResult(error=write_result.error)
@@ -608,7 +611,7 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
         except Exception as e:
             return EditResult(error=f"Failed to edit file: {e}")
 
-    def write(self, path: str, content: str | bytes) -> WriteResult:
+    async def write(self, path: str, content: str | bytes) -> WriteResult:
         """Write file to container using Docker put_archive API.
 
         This method uses Docker's put_archive() instead of heredoc to handle
@@ -633,7 +636,7 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
 
             # Ensure parent directory exists
             safe_parent_dir = shlex.quote(parent_dir)
-            mkdir_result = self.execute(f"mkdir -p {safe_parent_dir}")
+            mkdir_result = await self.execute(f"mkdir -p {safe_parent_dir}")
             if mkdir_result.exit_code != 0:
                 return WriteResult(error=f"Failed to create directory: {mkdir_result.output}")
 
@@ -670,7 +673,7 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
         """
         self._ensure_container()
 
-    def is_alive(self) -> bool:
+    async def is_alive(self) -> bool:
         """Check if container is running.
 
         Returns:

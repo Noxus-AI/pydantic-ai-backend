@@ -149,7 +149,7 @@ class SandboxProtocol(BackendProtocol, Protocol):
         ```
     """
 
-    def execute(self, command: str, timeout: int | None = None) -> ExecuteResponse:
+    async def execute(self, command: str, timeout: int | None = None) -> ExecuteResponse:
         """Execute a shell command.
 
         Args:

@@ -396,22 +396,22 @@ class TestLocalBackend:
         data = backend._read_bytes("data (binary) [v2].bin")
         assert data == b"\x00\x01\x02\x03"
 
-    def test_execute(self, tmp_path):
+    async def test_execute(self, tmp_path):
         """Test executing shell commands."""
         backend = LocalBackend(root_dir=tmp_path)
 
-        result = backend.execute("echo 'Hello, World!'")
+        result = await backend.execute("echo 'Hello, World!'")
         assert result.exit_code == 0
         assert "Hello, World!" in result.output
 
-    def test_execute_disabled(self, tmp_path):
+    async def test_execute_disabled(self, tmp_path):
         """Test that execute raises error when disabled."""
         import pytest
 
         backend = LocalBackend(root_dir=tmp_path, enable_execute=False)
 
         with pytest.raises(RuntimeError, match="Shell execution is disabled"):
-            backend.execute("echo 'test'")
+            await backend.execute("echo 'test'")
 
 
 class TestCompositeBackend:

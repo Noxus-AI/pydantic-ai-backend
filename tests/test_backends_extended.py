@@ -311,12 +311,12 @@ class TestLocalBackendExtended:
         result = backend.write(str(restricted / "file.txt"), "content")
         assert result.error is not None
 
-    def test_execute_timeout(self, tmp_path):
+    async def test_execute_timeout(self, tmp_path):
         """Test execute with timeout."""
         backend = LocalBackend(root_dir=tmp_path)
 
         # Command that takes longer than timeout
-        result = backend.execute("sleep 10", timeout=1)
+        result = await backend.execute("sleep 10", timeout=1)
         assert result.exit_code == 124
         assert "timed out" in result.output
 

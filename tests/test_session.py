@@ -30,7 +30,7 @@ class MockDockerSandbox:
     def session_id(self) -> str:
         return self._id
 
-    def is_alive(self) -> bool:
+    async def is_alive(self) -> bool:
         return self._alive
 
     def start(self) -> None:
@@ -53,7 +53,7 @@ class MockCustomSandbox:
     def session_id(self) -> str:
         return self._id
 
-    def is_alive(self) -> bool:
+    async def is_alive(self) -> bool:
         return self._alive
 
     def start(self) -> None:

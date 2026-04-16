@@ -554,7 +554,7 @@ class LocalBackend:
 
         return results
 
-    def execute(self, command: str, timeout: int | None = None) -> ExecuteResponse:
+    async def execute(self, command: str, timeout: int | None = None) -> ExecuteResponse:
         """Execute a shell command.
 
         Args:
@@ -567,6 +567,8 @@ class LocalBackend:
         Raises:
             RuntimeError: If execute is disabled for this backend.
         """
+        import asyncio
+
         if not self._enable_execute:
             raise RuntimeError(
                 "Shell execution is disabled for this backend. "
@@ -583,7 +585,8 @@ class LocalBackend:
             )
 
         try:
-            result = subprocess.run(
+            result = await asyncio.to_thread(
+                subprocess.run,
                 ["sh", "-c", command],
                 cwd=self._root,
                 capture_output=True,

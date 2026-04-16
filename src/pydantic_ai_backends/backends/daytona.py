@@ -102,7 +102,7 @@ class DaytonaSandbox(BaseSandbox):  # pragma: no cover
     def start(self) -> None:
         """No-op — Daytona sandboxes start automatically on creation."""
 
-    def execute(self, command: str, timeout: int | None = None) -> ExecuteResponse:
+    async def execute(self, command: str, timeout: int | None = None) -> ExecuteResponse:
         """Execute a command inside the Daytona sandbox.
 
         Args:
@@ -112,11 +112,16 @@ class DaytonaSandbox(BaseSandbox):  # pragma: no cover
         Returns:
             :class:`ExecuteResponse` with output, exit code, and truncation flag.
         """
+        import asyncio
+
         self._last_activity = time.time()
         effective_timeout = timeout if timeout is not None else 30 * 60
         try:
-            result = self._sandbox.process.exec(
-                command, cwd=self._work_dir, timeout=effective_timeout
+            result = await asyncio.to_thread(
+                self._sandbox.process.exec,
+                command,
+                cwd=self._work_dir,
+                timeout=effective_timeout,
             )
             output = result.result
             truncated = len(output) > _MAX_OUTPUT
@@ -134,7 +139,7 @@ class DaytonaSandbox(BaseSandbox):  # pragma: no cover
     # File I/O — native Daytona APIs
     # ------------------------------------------------------------------
 
-    def _read_bytes(self, path: str) -> bytes:
+    async def _read_bytes(self, path: str) -> bytes:
         """Download file bytes via Daytona's native file API."""
         from daytona import FileDownloadRequest
 
@@ -145,7 +150,7 @@ class DaytonaSandbox(BaseSandbox):  # pragma: no cover
         except Exception as e:
             return f"[Error: {e}]".encode()
 
-    def write(self, path: str, content: str | bytes) -> WriteResult:
+    async def write(self, path: str, content: str | bytes) -> WriteResult:
         """Upload a file via Daytona's native file API.
 
         Creates parent directories automatically.
@@ -162,7 +167,7 @@ class DaytonaSandbox(BaseSandbox):  # pragma: no cover
         try:
             # Ensure parent directory
             parent = str(PurePosixPath(path).parent)
-            self.execute(f"mkdir -p {shlex.quote(parent)}")
+            await self.execute(f"mkdir -p {shlex.quote(parent)}")
 
             payload = content if isinstance(content, bytes) else content.encode()
             self._sandbox.fs.upload_files([FileUpload(source=payload, destination=path)])
@@ -174,7 +179,7 @@ class DaytonaSandbox(BaseSandbox):  # pragma: no cover
     # Edit — read → Python replace → write (same pattern as DockerSandbox)
     # ------------------------------------------------------------------
 
-    def edit(
+    async def edit(
         self, path: str, old_string: str, new_string: str, replace_all: bool = False
     ) -> EditResult:
         """Edit a file by replacing strings.
@@ -191,7 +196,7 @@ class DaytonaSandbox(BaseSandbox):  # pragma: no cover
             :class:`EditResult` with path and occurrence count, or error.
         """
         try:
-            file_bytes = self._read_bytes(path)
+            file_bytes = await self._read_bytes(path)
             if file_bytes.startswith(b"[Error:"):
                 return EditResult(error=file_bytes.decode("utf-8", errors="replace"))
 
@@ -208,7 +213,7 @@ class DaytonaSandbox(BaseSandbox):  # pragma: no cover
                 )
 
             new_content = content.replace(old_string, new_string)
-            write_result = self.write(path, new_content)
+            write_result = await self.write(path, new_content)
 
             if write_result.error:
                 return EditResult(error=write_result.error)
@@ -221,10 +226,10 @@ class DaytonaSandbox(BaseSandbox):  # pragma: no cover
     # Lifecycle
     # ------------------------------------------------------------------
 
-    def is_alive(self) -> bool:
+    async def is_alive(self) -> bool:
         """Check if the sandbox is responsive."""
         try:
-            result = self.execute("echo ok", timeout=10)
+            result = await self.execute("echo ok", timeout=10)
             return result.exit_code == 0
         except Exception:
             return False

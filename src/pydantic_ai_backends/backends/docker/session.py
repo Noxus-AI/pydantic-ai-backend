@@ -130,7 +130,7 @@ class SessionManager:
         # Check for existing session
         if session_id in self._sessions:
             sandbox = self._sessions[session_id]
-            if sandbox.is_alive():
+            if await sandbox.is_alive():
                 sandbox._last_activity = time.time()
                 return sandbox
             # Container died, remove from cache

@@ -242,44 +242,44 @@ class TestLocalBackendAllowedDirectories:
 class TestLocalBackendExecute:
     """Test LocalBackend shell execution."""
 
-    def test_execute_basic(self, tmp_path: Path):
+    async def test_execute_basic(self, tmp_path: Path):
         """Test basic command execution."""
         backend = LocalBackend(root_dir=tmp_path)
 
-        result = backend.execute("echo 'hello'")
+        result = await backend.execute("echo 'hello'")
         assert result.exit_code == 0
         assert "hello" in result.output
 
-    def test_execute_with_timeout(self, tmp_path: Path):
+    async def test_execute_with_timeout(self, tmp_path: Path):
         """Test command execution with timeout."""
         backend = LocalBackend(root_dir=tmp_path)
 
-        result = backend.execute("sleep 0.1 && echo done", timeout=10)
+        result = await backend.execute("sleep 0.1 && echo done", timeout=10)
         assert result.exit_code == 0
         assert "done" in result.output
 
-    def test_execute_timeout_exceeded(self, tmp_path: Path):
+    async def test_execute_timeout_exceeded(self, tmp_path: Path):
         """Test command execution timeout."""
         backend = LocalBackend(root_dir=tmp_path)
 
-        result = backend.execute("sleep 10", timeout=1)
+        result = await backend.execute("sleep 10", timeout=1)
         assert result.exit_code == 124
         assert "timed out" in result.output
 
-    def test_execute_disabled_raises(self, tmp_path: Path):
+    async def test_execute_disabled_raises(self, tmp_path: Path):
         """Test that execute raises when disabled."""
         backend = LocalBackend(root_dir=tmp_path, enable_execute=False)
 
         with pytest.raises(RuntimeError) as exc_info:
-            backend.execute("echo 'hello'")
+            await backend.execute("echo 'hello'")
 
         assert "disabled" in str(exc_info.value)
 
-    def test_execute_working_dir(self, tmp_path: Path):
+    async def test_execute_working_dir(self, tmp_path: Path):
         """Test that execute uses root_dir as working directory."""
         backend = LocalBackend(root_dir=tmp_path)
 
-        result = backend.execute("pwd")
+        result = await backend.execute("pwd")
         assert result.exit_code == 0
         assert str(tmp_path) in result.output
 

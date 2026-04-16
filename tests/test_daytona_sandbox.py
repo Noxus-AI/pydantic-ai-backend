@@ -166,121 +166,121 @@ class TestDaytonaSandboxInit:
 
 
 class TestDaytonaSandboxExecute:
-    def test_basic_command(self) -> None:
+    async def test_basic_command(self) -> None:
         sandbox = _make_sandbox()
         sandbox._sandbox.process._exec_results = [FakeExecResult(result="hello world", exit_code=0)]
         sandbox._sandbox.process._call_index = 0
 
-        result = sandbox.execute("echo hello world")
+        result = await sandbox.execute("echo hello world")
         assert result.output == "hello world"
         assert result.exit_code == 0
         assert result.truncated is False
 
-    def test_command_failure(self) -> None:
+    async def test_command_failure(self) -> None:
         sandbox = _make_sandbox()
         sandbox._sandbox.process._exec_results = [FakeExecResult(result="not found", exit_code=127)]
         sandbox._sandbox.process._call_index = 0
 
-        result = sandbox.execute("nonexistent")
+        result = await sandbox.execute("nonexistent")
         assert result.exit_code == 127
 
-    def test_output_truncation(self) -> None:
+    async def test_output_truncation(self) -> None:
         sandbox = _make_sandbox()
         long_output = "x" * 200_000
         sandbox._sandbox.process._exec_results = [FakeExecResult(result=long_output, exit_code=0)]
         sandbox._sandbox.process._call_index = 0
 
-        result = sandbox.execute("cat bigfile")
+        result = await sandbox.execute("cat bigfile")
         assert result.truncated is True
         assert len(result.output) == 100_000
 
-    def test_execute_exception(self) -> None:
+    async def test_execute_exception(self) -> None:
         sandbox = _make_sandbox()
         sandbox._sandbox.process.exec = MagicMock(side_effect=RuntimeError("boom"))
 
-        result = sandbox.execute("fail")
+        result = await sandbox.execute("fail")
         assert result.exit_code == 1
         assert "boom" in result.output
 
-    def test_default_timeout(self) -> None:
+    async def test_default_timeout(self) -> None:
         sandbox = _make_sandbox()
         mock_exec = MagicMock(return_value=FakeExecResult())
         sandbox._sandbox.process.exec = mock_exec
 
-        sandbox.execute("echo test")
+        await sandbox.execute("echo test")
         _, kwargs = mock_exec.call_args
         assert kwargs["timeout"] == 30 * 60
 
-    def test_custom_timeout(self) -> None:
+    async def test_custom_timeout(self) -> None:
         sandbox = _make_sandbox()
         mock_exec = MagicMock(return_value=FakeExecResult())
         sandbox._sandbox.process.exec = mock_exec
 
-        sandbox.execute("echo test", timeout=42)
+        await sandbox.execute("echo test", timeout=42)
         _, kwargs = mock_exec.call_args
         assert kwargs["timeout"] == 42
 
 
 class TestDaytonaSandboxReadBytes:
-    def test_read_bytes_string(self) -> None:
+    async def test_read_bytes_string(self) -> None:
         sandbox = _make_sandbox()
         sandbox._sandbox.fs._download_responses = [
             FakeDownloadResponse(source="/test.txt", result="file content")
         ]
 
-        data = sandbox._read_bytes("/test.txt")
+        data = await sandbox._read_bytes("/test.txt")
         assert data == b"file content"
 
-    def test_read_bytes_binary(self) -> None:
+    async def test_read_bytes_binary(self) -> None:
         sandbox = _make_sandbox()
         sandbox._sandbox.fs._download_responses = [
             FakeDownloadResponse(source="/img.bin", result=b"\x89PNG")
         ]
 
-        data = sandbox._read_bytes("/img.bin")
+        data = await sandbox._read_bytes("/img.bin")
         assert data == b"\x89PNG"
 
-    def test_read_bytes_error(self) -> None:
+    async def test_read_bytes_error(self) -> None:
         sandbox = _make_sandbox()
         sandbox._sandbox.fs.download_files = MagicMock(side_effect=RuntimeError("download failed"))
 
-        data = sandbox._read_bytes("/missing.txt")
+        data = await sandbox._read_bytes("/missing.txt")
         assert data.startswith(b"[Error:")
 
 
 class TestDaytonaSandboxWrite:
-    def test_write_string(self) -> None:
+    async def test_write_string(self) -> None:
         sandbox = _make_sandbox()
         sandbox._sandbox.process._exec_results = [FakeExecResult()]
         sandbox._sandbox.process._call_index = 0
 
-        result = sandbox.write("/test.txt", "hello")
+        result = await sandbox.write("/test.txt", "hello")
         assert result.path == "/test.txt"
         assert result.error is None
         assert len(sandbox._sandbox.fs._uploaded) == 1
 
-    def test_write_bytes(self) -> None:
+    async def test_write_bytes(self) -> None:
         sandbox = _make_sandbox()
         sandbox._sandbox.process._exec_results = [FakeExecResult()]
         sandbox._sandbox.process._call_index = 0
 
-        result = sandbox.write("/test.bin", b"\x00\x01")
+        result = await sandbox.write("/test.bin", b"\x00\x01")
         assert result.path == "/test.bin"
         assert result.error is None
 
-    def test_write_error(self) -> None:
+    async def test_write_error(self) -> None:
         sandbox = _make_sandbox()
         sandbox._sandbox.process._exec_results = [FakeExecResult()]
         sandbox._sandbox.process._call_index = 0
         sandbox._sandbox.fs.upload_files = MagicMock(side_effect=RuntimeError("upload failed"))
 
-        result = sandbox.write("/test.txt", "content")
+        result = await sandbox.write("/test.txt", "content")
         assert result.error is not None
         assert "upload failed" in result.error
 
 
 class TestDaytonaSandboxEdit:
-    def test_edit_single_occurrence(self) -> None:
+    async def test_edit_single_occurrence(self) -> None:
         sandbox = _make_sandbox()
         sandbox._sandbox.fs._download_responses = [
             FakeDownloadResponse(source="/f.py", result="foo = 1")
@@ -288,30 +288,30 @@ class TestDaytonaSandboxEdit:
         sandbox._sandbox.process._exec_results = [FakeExecResult()]
         sandbox._sandbox.process._call_index = 0
 
-        result = sandbox.edit("/f.py", "foo", "bar")
+        result = await sandbox.edit("/f.py", "foo", "bar")
         assert result.path == "/f.py"
         assert result.occurrences == 1
 
-    def test_edit_not_found(self) -> None:
+    async def test_edit_not_found(self) -> None:
         sandbox = _make_sandbox()
         sandbox._sandbox.fs._download_responses = [
             FakeDownloadResponse(source="/f.py", result="foo = 1")
         ]
 
-        result = sandbox.edit("/f.py", "baz", "qux")
+        result = await sandbox.edit("/f.py", "baz", "qux")
         assert result.error == "String not found in file"
 
-    def test_edit_multiple_without_replace_all(self) -> None:
+    async def test_edit_multiple_without_replace_all(self) -> None:
         sandbox = _make_sandbox()
         sandbox._sandbox.fs._download_responses = [
             FakeDownloadResponse(source="/f.py", result="foo foo foo")
         ]
 
-        result = sandbox.edit("/f.py", "foo", "bar")
+        result = await sandbox.edit("/f.py", "foo", "bar")
         assert result.error is not None
         assert "3 times" in result.error
 
-    def test_edit_replace_all(self) -> None:
+    async def test_edit_replace_all(self) -> None:
         sandbox = _make_sandbox()
         sandbox._sandbox.fs._download_responses = [
             FakeDownloadResponse(source="/f.py", result="foo foo")
@@ -319,29 +319,29 @@ class TestDaytonaSandboxEdit:
         sandbox._sandbox.process._exec_results = [FakeExecResult()]
         sandbox._sandbox.process._call_index = 0
 
-        result = sandbox.edit("/f.py", "foo", "bar", replace_all=True)
+        result = await sandbox.edit("/f.py", "foo", "bar", replace_all=True)
         assert result.path == "/f.py"
         assert result.occurrences == 2
 
-    def test_edit_read_error(self) -> None:
+    async def test_edit_read_error(self) -> None:
         sandbox = _make_sandbox()
         sandbox._sandbox.fs.download_files = MagicMock(side_effect=RuntimeError("read fail"))
 
-        result = sandbox.edit("/f.py", "a", "b")
+        result = await sandbox.edit("/f.py", "a", "b")
         assert result.error is not None
         assert "read fail" in result.error
 
-    def test_edit_read_bytes_returns_error_bytes(self) -> None:
+    async def test_edit_read_bytes_returns_error_bytes(self) -> None:
         sandbox = _make_sandbox()
         sandbox._sandbox.fs._download_responses = [
             FakeDownloadResponse(source="/f.py", result="[Error: not found]")
         ]
 
-        result = sandbox.edit("/f.py", "a", "b")
+        result = await sandbox.edit("/f.py", "a", "b")
         assert result.error is not None
         assert "Error" in result.error
 
-    def test_edit_write_error(self) -> None:
+    async def test_edit_write_error(self) -> None:
         sandbox = _make_sandbox()
         sandbox._sandbox.fs._download_responses = [
             FakeDownloadResponse(source="/f.py", result="old text")
@@ -350,24 +350,24 @@ class TestDaytonaSandboxEdit:
         sandbox._sandbox.process._call_index = 0
         sandbox._sandbox.fs.upload_files = MagicMock(side_effect=RuntimeError("write fail"))
 
-        result = sandbox.edit("/f.py", "old", "new")
+        result = await sandbox.edit("/f.py", "old", "new")
         assert result.error is not None
         assert "write fail" in result.error
 
 
 class TestDaytonaSandboxLifecycle:
-    def test_is_alive_true(self) -> None:
+    async def test_is_alive_true(self) -> None:
         sandbox = _make_sandbox()
         sandbox._sandbox.process._exec_results = [FakeExecResult(result="ok", exit_code=0)]
         sandbox._sandbox.process._call_index = 0
 
-        assert sandbox.is_alive() is True
+        assert await sandbox.is_alive() is True
 
-    def test_is_alive_false(self) -> None:
+    async def test_is_alive_false(self) -> None:
         sandbox = _make_sandbox()
         sandbox._sandbox.process.exec = MagicMock(side_effect=RuntimeError("dead"))
 
-        assert sandbox.is_alive() is False
+        assert await sandbox.is_alive() is False
 
     def test_stop(self) -> None:
         sandbox = _make_sandbox()

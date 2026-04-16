@@ -233,32 +233,32 @@ class TestLocalBackendEditPermissions:
 class TestLocalBackendExecutePermissions:
     """Tests for execute operation permission checks."""
 
-    def test_execute_allowed(self, tmp_path: Path):
+    async def test_execute_allowed(self, tmp_path: Path):
         """Test execute when permission allows."""
         ruleset = PermissionRuleset(
             execute=OperationPermissions(default="allow"),
         )
         backend = LocalBackend(root_dir=tmp_path, permissions=ruleset)
 
-        result = backend.execute("echo hello")
+        result = await backend.execute("echo hello")
 
         assert result.exit_code == 0
         assert "hello" in result.output
 
-    def test_execute_denied(self, tmp_path: Path):
+    async def test_execute_denied(self, tmp_path: Path):
         """Test execute when permission denies."""
         ruleset = PermissionRuleset(
             execute=OperationPermissions(default="deny"),
         )
         backend = LocalBackend(root_dir=tmp_path, permissions=ruleset)
 
-        result = backend.execute("echo hello")
+        result = await backend.execute("echo hello")
 
         assert result.exit_code == 1
         assert "Error" in result.output
         assert "Permission denied" in result.output
 
-    def test_execute_denied_by_rule(self, tmp_path: Path):
+    async def test_execute_denied_by_rule(self, tmp_path: Path):
         """Test execute denied by specific rule."""
         ruleset = PermissionRuleset(
             execute=OperationPermissions(
@@ -274,7 +274,7 @@ class TestLocalBackendExecutePermissions:
         )
         backend = LocalBackend(root_dir=tmp_path, permissions=ruleset)
 
-        result = backend.execute("rm file.txt")
+        result = await backend.execute("rm file.txt")
 
         assert result.exit_code == 1
         assert "Block rm commands" in result.output

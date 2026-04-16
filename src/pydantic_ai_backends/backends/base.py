@@ -100,7 +100,7 @@ class BaseSandbox(ABC):
         (sandboxes start lazily on first operation).
         """
 
-    def is_alive(self) -> bool:  # pragma: no cover
+    async def is_alive(self) -> bool:  # pragma: no cover
         """Check if the sandbox is running.
 
         Returns:
@@ -112,7 +112,7 @@ class BaseSandbox(ABC):
         """Stop and clean up the sandbox."""
 
     @abstractmethod
-    def execute(
+    async def execute(
         self, command: str, timeout: int | None = None
     ) -> ExecuteResponse:  # pragma: no cover
         """Execute a command in the sandbox.
@@ -127,7 +127,7 @@ class BaseSandbox(ABC):
         ...
 
     @abstractmethod
-    def edit(  # pragma: no cover
+    async def edit(  # pragma: no cover
         self, path: str, old_string: str, new_string: str, replace_all: bool = False
     ) -> EditResult:
         """Edit a file by replacing strings.
@@ -143,10 +143,10 @@ class BaseSandbox(ABC):
         """
         ...
 
-    def ls_info(self, path: str) -> list[FileInfo]:  # pragma: no cover
+    async def ls_info(self, path: str) -> list[FileInfo]:  # pragma: no cover
         """List files using ls command."""
         path = shlex.quote(path)
-        result = self.execute(f"ls -la {path}")
+        result = await self.execute(f"ls -la {path}")
         if result.exit_code != 0:
             return []
 
@@ -178,24 +178,24 @@ class BaseSandbox(ABC):
 
         return sorted(entries, key=lambda x: (not x["is_dir"], x["name"]))
 
-    def _read_bytes(self, path: str) -> bytes:  # pragma: no cover
+    async def _read_bytes(self, path: str) -> bytes:  # pragma: no cover
         """Read raw bytes from file using cat command."""
         path = shlex.quote(path)
-        result = self.execute(f"cat {path}")
+        result = await self.execute(f"cat {path}")
 
         if result.exit_code != 0:
             return f"[Error: {result.output}]".encode()
 
         return result.output.encode("utf-8", errors="replace")
 
-    def read(self, path: str, offset: int = 0, limit: int = 2000) -> str:  # pragma: no cover
+    async def read(self, path: str, offset: int = 0, limit: int = 2000) -> str:  # pragma: no cover
         """Read file using cat command with line numbers."""
         # Use sed to handle offset and limit
         start = offset + 1  # sed is 1-indexed
         end = offset + limit
 
         path = shlex.quote(path)
-        result = self.execute(f"sed -n '{start},{end}p' {path} | cat -n")
+        result = await self.execute(f"sed -n '{start},{end}p' {path} | cat -n")
 
         if result.exit_code != 0:
             return f"Error: {result.output}"
@@ -205,7 +205,7 @@ class BaseSandbox(ABC):
 
         return result.output
 
-    def write(self, path: str, content: str) -> WriteResult:  # pragma: no cover
+    async def write(self, path: str, content: str) -> WriteResult:  # pragma: no cover
         """Write file using cat with heredoc."""
         # Escape special characters for heredoc
         escaped = content.replace("\\", "\\\\").replace("$", "\\$").replace("`", "\\`")
@@ -219,18 +219,18 @@ class BaseSandbox(ABC):
             f"{escaped}\n"
             f"{delimiter}"
         )
-        result = self.execute(command)
+        result = await self.execute(command)
 
         if result.exit_code != 0:
             return WriteResult(error=result.output)
 
         return WriteResult(path=path)
 
-    def glob_info(self, pattern: str, path: str = "/") -> list[FileInfo]:  # pragma: no cover
+    async def glob_info(self, pattern: str, path: str = "/") -> list[FileInfo]:  # pragma: no cover
         """Find files using find command."""
         # Convert glob to find pattern
         path = shlex.quote(path)
-        result = self.execute(f"find {path} -name '{pattern}' -type f 2>/dev/null")
+        result = await self.execute(f"find {path} -name '{pattern}' -type f 2>/dev/null")
 
         if result.exit_code != 0:
             return []
@@ -252,7 +252,7 @@ class BaseSandbox(ABC):
 
         return sorted(entries, key=lambda x: x["path"])
 
-    def grep_raw(  # pragma: no cover
+    async def grep_raw(  # pragma: no cover
         self,
         pattern: str,
         path: str | None = None,
@@ -273,7 +273,7 @@ class BaseSandbox(ABC):
         options_str = " ".join(options)
         cmd = f"grep {options_str} '{pattern}' {search_path}"
 
-        result = self.execute(cmd)
+        result = await self.execute(cmd)
 
         if result.exit_code == 1:  # No matches
             return []
