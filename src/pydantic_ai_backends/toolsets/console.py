@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import functools
+import inspect
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast, runtime_checkable
 
@@ -704,8 +706,16 @@ for long-running builds or test suites.
             if hasattr(backend, "execute_enabled") and not backend.execute_enabled:  # pyright: ignore[reportAttributeAccessIssue]
                 return "Error: Shell execution is disabled for this backend"
 
+            execute_func = backend.execute  # pyright: ignore[reportAttributeAccessIssue]
+
+            # Check if execute is async or sync
+            if inspect.iscoroutinefunction(execute_func):
+                method = execute_func
+            else:
+                method = functools.partial(asyncio.to_thread, execute_func)
+
             try:
-                result = await asyncio.to_thread(backend.execute, command, timeout)  # pyright: ignore[reportAttributeAccessIssue]
+                result = await method(command, timeout)
             except RuntimeError as e:
                 return f"Error: {e}"
 
