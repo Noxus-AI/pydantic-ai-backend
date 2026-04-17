@@ -26,16 +26,16 @@ class BackendProtocol(Protocol):
         ```python
         from pydantic_ai_backends import BackendProtocol, StateBackend
 
-        def process_files(backend: BackendProtocol) -> None:
+        async def process_files(backend: BackendProtocol) -> None:
             # Works with any backend implementation
-            files = backend.ls_info("/")
+            files = await backend.ls_info("/")
             for f in files:
-                content = backend.read(f["path"])
+                content = await backend.read(f["path"])
                 print(content)
         ```
     """
 
-    def ls_info(self, path: str) -> list[FileInfo]:
+    async def ls_info(self, path: str) -> list[FileInfo]:
         """List files and directories at the given path.
 
         Args:
@@ -46,7 +46,7 @@ class BackendProtocol(Protocol):
         """
         ...
 
-    def _read_bytes(self, path: str) -> bytes:
+    async def _read_bytes(self, path: str) -> bytes:
         """Read raw bytes from a file.
 
         Args:
@@ -57,7 +57,7 @@ class BackendProtocol(Protocol):
         """
         ...
 
-    def read(self, path: str, offset: int = 0, limit: int = 2000) -> str:
+    async def read(self, path: str, offset: int = 0, limit: int = 2000) -> str:
         """Read file content with line numbers.
 
         Args:
@@ -70,7 +70,7 @@ class BackendProtocol(Protocol):
         """
         ...
 
-    def write(self, path: str, content: str | bytes) -> WriteResult:
+    async def write(self, path: str, content: str | bytes) -> WriteResult:
         """Write content to a file.
 
         Args:
@@ -82,7 +82,7 @@ class BackendProtocol(Protocol):
         """
         ...
 
-    def edit(
+    async def edit(
         self, path: str, old_string: str, new_string: str, replace_all: bool = False
     ) -> EditResult:
         """Edit a file by replacing strings.
@@ -98,7 +98,7 @@ class BackendProtocol(Protocol):
         """
         ...
 
-    def glob_info(self, pattern: str, path: str = "/") -> list[FileInfo]:
+    async def glob_info(self, pattern: str, path: str = "/") -> list[FileInfo]:
         """Find files matching a glob pattern.
 
         Args:
@@ -110,7 +110,7 @@ class BackendProtocol(Protocol):
         """
         ...
 
-    def grep_raw(
+    async def grep_raw(
         self,
         pattern: str,
         path: str | None = None,
@@ -142,9 +142,9 @@ class SandboxProtocol(BackendProtocol, Protocol):
         ```python
         from pydantic_ai_backends import SandboxProtocol, DockerSandbox
 
-        def run_python_script(sandbox: SandboxProtocol, script: str) -> str:
-            sandbox.write("/tmp/script.py", script)
-            result = sandbox.execute("python /tmp/script.py", timeout=30)
+        async def run_python_script(sandbox: SandboxProtocol, script: str) -> str:
+            await sandbox.write("/tmp/script.py", script)
+            result = await sandbox.execute("python /tmp/script.py", timeout=30)
             return result.output
         ```
     """

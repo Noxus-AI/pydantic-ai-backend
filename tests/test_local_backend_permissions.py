@@ -63,7 +63,7 @@ class TestLocalBackendPermissionsInit:
 class TestLocalBackendReadPermissions:
     """Tests for read operation permission checks."""
 
-    def test_read_allowed(self, tmp_path: Path):
+    async def test_read_allowed(self, tmp_path: Path):
         """Test read when permission allows."""
         ruleset = PermissionRuleset(
             read=OperationPermissions(default="allow"),
@@ -72,12 +72,12 @@ class TestLocalBackendReadPermissions:
 
         # Create and read a file
         (tmp_path / "test.txt").write_text("content")
-        result = backend.read("test.txt")
+        result = await backend.read("test.txt")
 
         assert "content" in result
         assert "Error" not in result
 
-    def test_read_denied(self, tmp_path: Path):
+    async def test_read_denied(self, tmp_path: Path):
         """Test read when permission denies."""
         ruleset = PermissionRuleset(
             read=OperationPermissions(default="deny"),
@@ -85,12 +85,12 @@ class TestLocalBackendReadPermissions:
         backend = LocalBackend(root_dir=tmp_path, permissions=ruleset)
 
         (tmp_path / "test.txt").write_text("content")
-        result = backend.read("test.txt")
+        result = await backend.read("test.txt")
 
         assert "Error" in result
         assert "Permission denied" in result
 
-    def test_read_denied_by_rule(self, tmp_path: Path):
+    async def test_read_denied_by_rule(self, tmp_path: Path):
         """Test read denied by specific rule."""
         ruleset = PermissionRuleset(
             read=OperationPermissions(
@@ -109,12 +109,12 @@ class TestLocalBackendReadPermissions:
         env_file = tmp_path / ".env"
         env_file.write_text("SECRET=123")
 
-        result = backend.read(".env")
+        result = await backend.read(".env")
 
         assert "Error" in result
         assert "Protect env files" in result
 
-    def test_read_ask_with_deny_fallback(self, tmp_path: Path):
+    async def test_read_ask_with_deny_fallback(self, tmp_path: Path):
         """Test read with ask action and deny fallback."""
         ruleset = PermissionRuleset(
             read=OperationPermissions(default="ask"),
@@ -126,12 +126,12 @@ class TestLocalBackendReadPermissions:
         )
 
         (tmp_path / "test.txt").write_text("content")
-        result = backend.read("test.txt")
+        result = await backend.read("test.txt")
 
         assert "Error" in result
         assert "approval required" in result
 
-    def test_read_ask_with_error_fallback(self, tmp_path: Path):
+    async def test_read_ask_with_error_fallback(self, tmp_path: Path):
         """Test read with ask action and error fallback."""
         ruleset = PermissionRuleset(
             read=OperationPermissions(default="ask"),
@@ -145,38 +145,38 @@ class TestLocalBackendReadPermissions:
         (tmp_path / "test.txt").write_text("content")
 
         with pytest.raises(PermissionError):
-            backend.read("test.txt")
+            await backend.read("test.txt")
 
 
 class TestLocalBackendWritePermissions:
     """Tests for write operation permission checks."""
 
-    def test_write_allowed(self, tmp_path: Path):
+    async def test_write_allowed(self, tmp_path: Path):
         """Test write when permission allows."""
         ruleset = PermissionRuleset(
             write=OperationPermissions(default="allow"),
         )
         backend = LocalBackend(root_dir=tmp_path, permissions=ruleset)
 
-        result = backend.write("test.txt", "content")
+        result = await backend.write("test.txt", "content")
 
         assert result.error is None
         assert (tmp_path / "test.txt").read_text() == "content"
 
-    def test_write_denied(self, tmp_path: Path):
+    async def test_write_denied(self, tmp_path: Path):
         """Test write when permission denies."""
         ruleset = PermissionRuleset(
             write=OperationPermissions(default="deny"),
         )
         backend = LocalBackend(root_dir=tmp_path, permissions=ruleset)
 
-        result = backend.write("test.txt", "content")
+        result = await backend.write("test.txt", "content")
 
         assert result.error is not None
         assert "Permission denied" in result.error
         assert not (tmp_path / "test.txt").exists()
 
-    def test_write_denied_by_rule(self, tmp_path: Path):
+    async def test_write_denied_by_rule(self, tmp_path: Path):
         """Test write denied by specific rule."""
         ruleset = PermissionRuleset(
             write=OperationPermissions(
@@ -192,7 +192,7 @@ class TestLocalBackendWritePermissions:
         )
         backend = LocalBackend(root_dir=tmp_path, permissions=ruleset)
 
-        result = backend.write("sensitive.txt", "content")
+        result = await backend.write("sensitive.txt", "content")
 
         assert result.error is not None
         assert "Protect sensitive file" in result.error
@@ -201,7 +201,7 @@ class TestLocalBackendWritePermissions:
 class TestLocalBackendEditPermissions:
     """Tests for edit operation permission checks."""
 
-    def test_edit_allowed(self, tmp_path: Path):
+    async def test_edit_allowed(self, tmp_path: Path):
         """Test edit when permission allows."""
         ruleset = PermissionRuleset(
             edit=OperationPermissions(default="allow"),
@@ -209,12 +209,12 @@ class TestLocalBackendEditPermissions:
         backend = LocalBackend(root_dir=tmp_path, permissions=ruleset)
 
         (tmp_path / "test.txt").write_text("hello world")
-        result = backend.edit("test.txt", "hello", "goodbye")
+        result = await backend.edit("test.txt", "hello", "goodbye")
 
         assert result.error is None
         assert (tmp_path / "test.txt").read_text() == "goodbye world"
 
-    def test_edit_denied(self, tmp_path: Path):
+    async def test_edit_denied(self, tmp_path: Path):
         """Test edit when permission denies."""
         ruleset = PermissionRuleset(
             edit=OperationPermissions(default="deny"),
@@ -222,7 +222,7 @@ class TestLocalBackendEditPermissions:
         backend = LocalBackend(root_dir=tmp_path, permissions=ruleset)
 
         (tmp_path / "test.txt").write_text("hello world")
-        result = backend.edit("test.txt", "hello", "goodbye")
+        result = await backend.edit("test.txt", "hello", "goodbye")
 
         assert result.error is not None
         assert "Permission denied" in result.error
@@ -283,7 +283,7 @@ class TestLocalBackendExecutePermissions:
 class TestLocalBackendPermissionsWithAllowedDirectories:
     """Tests for permissions combined with allowed_directories."""
 
-    def test_allowed_directories_checked_first(self, tmp_path: Path):
+    async def test_allowed_directories_checked_first(self, tmp_path: Path):
         """Test that allowed_directories are checked before permissions."""
         project_dir = tmp_path / "project"
         project_dir.mkdir()
@@ -301,12 +301,12 @@ class TestLocalBackendPermissionsWithAllowedDirectories:
         outside.write_text("content")
 
         # Should fail due to allowed_directories, not permissions
-        result = backend.read(str(outside))
+        result = await backend.read(str(outside))
 
         assert "Error" in result
         assert "outside allowed directories" in result
 
-    def test_both_checks_pass(self, tmp_path: Path):
+    async def test_both_checks_pass(self, tmp_path: Path):
         """Test when both checks pass."""
         project_dir = tmp_path / "project"
         project_dir.mkdir()
@@ -320,7 +320,7 @@ class TestLocalBackendPermissionsWithAllowedDirectories:
         )
 
         (project_dir / "test.txt").write_text("content")
-        result = backend.read("test.txt")
+        result = await backend.read("test.txt")
 
         assert "content" in result
         assert "Error" not in result

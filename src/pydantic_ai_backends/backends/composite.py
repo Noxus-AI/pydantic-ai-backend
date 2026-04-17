@@ -25,10 +25,10 @@ class CompositeBackend:
         )
 
         # Routes to FilesystemBackend
-        backend.write("/project/app.py", "...")
+        await backend.write("/project/app.py", "...")
 
         # Routes to StateBackend (default)
-        backend.write("/temp/scratch.txt", "...")
+        await backend.write("/temp/scratch.txt", "...")
         ```
     """
 
@@ -57,7 +57,7 @@ class CompositeBackend:
                 return self._routes[prefix]
         return self._default
 
-    def ls_info(self, path: str) -> list[FileInfo]:
+    async def ls_info(self, path: str) -> list[FileInfo]:
         """List files, aggregating from all relevant backends."""
         # If path matches a specific route, use that backend
         backend = self._get_backend(path)
@@ -67,7 +67,7 @@ class CompositeBackend:
             all_entries: dict[str, FileInfo] = {}
 
             # First, get entries from default backend
-            for entry in self._default.ls_info(path):
+            for entry in await self._default.ls_info(path):
                 all_entries[entry["path"]] = entry
 
             # Then, add virtual directories for route prefixes
@@ -87,44 +87,44 @@ class CompositeBackend:
 
             return sorted(all_entries.values(), key=lambda x: (not x["is_dir"], x["name"]))
 
-        return backend.ls_info(path)
+        return await backend.ls_info(path)
 
-    def _read_bytes(self, path: str) -> bytes:
+    async def _read_bytes(self, path: str) -> bytes:
         """Read bytes from the appropriate backend."""
-        return self._get_backend(path)._read_bytes(path)
+        return await self._get_backend(path)._read_bytes(path)
 
-    def read(self, path: str, offset: int = 0, limit: int = 2000) -> str:
+    async def read(self, path: str, offset: int = 0, limit: int = 2000) -> str:
         """Read from the appropriate backend."""
-        return self._get_backend(path).read(path, offset, limit)
+        return await self._get_backend(path).read(path, offset, limit)
 
-    def write(self, path: str, content: str | bytes) -> WriteResult:
+    async def write(self, path: str, content: str | bytes) -> WriteResult:
         """Write to the appropriate backend."""
-        return self._get_backend(path).write(path, content)
+        return await self._get_backend(path).write(path, content)
 
-    def edit(
+    async def edit(
         self, path: str, old_string: str, new_string: str, replace_all: bool = False
     ) -> EditResult:
         """Edit using the appropriate backend."""
-        return self._get_backend(path).edit(path, old_string, new_string, replace_all)
+        return await self._get_backend(path).edit(path, old_string, new_string, replace_all)
 
-    def glob_info(self, pattern: str, path: str = "/") -> list[FileInfo]:
+    async def glob_info(self, pattern: str, path: str = "/") -> list[FileInfo]:
         """Glob across all backends if searching from root."""
         if path == "/" or path == "":
             all_results: list[FileInfo] = []
 
             # Search in default backend
-            all_results.extend(self._default.glob_info(pattern, path))
+            all_results.extend(await self._default.glob_info(pattern, path))
 
             # Search in each routed backend
             for prefix, backend in self._routes.items():
-                results = backend.glob_info(pattern, prefix)
+                results = await backend.glob_info(pattern, prefix)
                 all_results.extend(results)
 
             return sorted(all_results, key=lambda x: x["path"])
 
-        return self._get_backend(path).glob_info(pattern, path)
+        return await self._get_backend(path).glob_info(pattern, path)
 
-    def grep_raw(
+    async def grep_raw(
         self,
         pattern: str,
         path: str | None = None,
@@ -136,7 +136,7 @@ class CompositeBackend:
             all_results: list[GrepMatch] = []
 
             # Search in default backend
-            result = self._default.grep_raw(pattern, path, glob, ignore_hidden)
+            result = await self._default.grep_raw(pattern, path, glob, ignore_hidden)
             if isinstance(result, list):
                 all_results.extend(result)
             elif isinstance(result, str) and result.startswith("Error"):
@@ -144,10 +144,10 @@ class CompositeBackend:
 
             # Search in each routed backend
             for prefix, backend in self._routes.items():
-                result = backend.grep_raw(pattern, prefix, glob, ignore_hidden)
+                result = await backend.grep_raw(pattern, prefix, glob, ignore_hidden)
                 if isinstance(result, list):
                     all_results.extend(result)
 
             return all_results
 
-        return self._get_backend(path).grep_raw(pattern, path, glob, ignore_hidden)
+        return await self._get_backend(path).grep_raw(pattern, path, glob, ignore_hidden)

@@ -54,14 +54,14 @@ class StateBackend:
         backend = StateBackend()
 
         # Write a file
-        backend.write("/src/app.py", "print('hello')")
+        await backend.write("/src/app.py", "print('hello')")
 
         # Read it back
-        content = backend.read("/src/app.py")
+        content = await backend.read("/src/app.py")
         print(content)  # "     1\\tprint('hello')"
 
         # Search files
-        matches = backend.grep_raw("print")
+        matches = await backend.grep_raw("print")
         ```
     """
 
@@ -86,7 +86,7 @@ class StateBackend:
         """Get current ISO 8601 timestamp."""
         return datetime.now(timezone.utc).isoformat()
 
-    def ls_info(self, path: str) -> list[FileInfo]:
+    async def ls_info(self, path: str) -> list[FileInfo]:
         """List files and directories at the given path."""
         error = _validate_path(path)
         if error:
@@ -137,7 +137,7 @@ class StateBackend:
 
         return sorted(entries.values(), key=lambda x: (not x["is_dir"], x["name"]))
 
-    def _read_bytes(self, path: str) -> bytes:
+    async def _read_bytes(self, path: str) -> bytes:
         """Read raw bytes from a file.
 
         Args:
@@ -158,7 +158,7 @@ class StateBackend:
         content = "\n".join(self._files[path]["content"])
         return content.encode("utf-8", errors="replace")  # pragma: no cover
 
-    def read(self, path: str, offset: int = 0, limit: int = 2000) -> str:
+    async def read(self, path: str, offset: int = 0, limit: int = 2000) -> str:
         """Read file content with line numbers."""
         error = _validate_path(path)
         if error:  # pragma: no cover
@@ -189,7 +189,7 @@ class StateBackend:
 
         return result
 
-    def write(self, path: str, content: str | bytes) -> WriteResult:
+    async def write(self, path: str, content: str | bytes) -> WriteResult:
         """Write content to a file."""
         error = _validate_path(path)
         if error:
@@ -215,7 +215,7 @@ class StateBackend:
 
         return WriteResult(path=path)
 
-    def edit(
+    async def edit(
         self, path: str, old_string: str, new_string: str, replace_all: bool = False
     ) -> EditResult:
         """Edit a file by replacing strings."""
@@ -250,7 +250,7 @@ class StateBackend:
 
         return EditResult(path=path, occurrences=occurrences if replace_all else 1)
 
-    def glob_info(self, pattern: str, path: str = "/") -> list[FileInfo]:
+    async def glob_info(self, pattern: str, path: str = "/") -> list[FileInfo]:
         """Find files matching a glob pattern."""
         error = _validate_path(path)
         if error:
@@ -281,7 +281,7 @@ class StateBackend:
 
         return sorted(results, key=lambda x: x["path"])
 
-    def grep_raw(
+    async def grep_raw(
         self,
         pattern: str,
         path: str | None = None,

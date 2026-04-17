@@ -45,8 +45,8 @@ class LocalBackend:
 
         # Full access with shell execution
         backend = LocalBackend(root_dir="/workspace")
-        backend.write("/src/app.py", "print('hello')")
-        result = backend.execute("python /src/app.py")
+        await backend.write("/src/app.py", "print('hello')")
+        result = await backend.execute("python /src/app.py")
 
         # Restricted directories, no shell
         backend = LocalBackend(
@@ -209,7 +209,7 @@ class LocalBackend:
             f"Access denied: '{path}' is outside allowed directories ({allowed_str})"
         )
 
-    def ls_info(self, path: str) -> list[FileInfo]:
+    async def ls_info(self, path: str) -> list[FileInfo]:
         """List files and directories at the given path."""
         try:
             full_path = self._validate_path(path)
@@ -250,7 +250,7 @@ class LocalBackend:
 
         return sorted(results, key=lambda x: (not x["is_dir"], x["name"]))
 
-    def _read_bytes(self, path: str) -> bytes:  # pragma: no cover
+    async def _read_bytes(self, path: str) -> bytes:  # pragma: no cover
         """Read raw bytes from a file."""
         try:
             full_path = self._validate_path(path)
@@ -265,7 +265,7 @@ class LocalBackend:
         except (PermissionError, OSError):
             return b""
 
-    def read(self, path: str, offset: int = 0, limit: int = 2000) -> str:
+    async def read(self, path: str, offset: int = 0, limit: int = 2000) -> str:
         """Read file content with line numbers."""
         try:
             full_path = self._validate_path(path)
@@ -311,7 +311,7 @@ class LocalBackend:
 
         return result
 
-    def write(self, path: str, content: str | bytes) -> WriteResult:
+    async def write(self, path: str, content: str | bytes) -> WriteResult:
         """Write content to a file."""
         try:
             full_path = self._validate_path(path)
@@ -337,7 +337,7 @@ class LocalBackend:
         except OSError as e:  # pragma: no cover
             return WriteResult(error=str(e))
 
-    def edit(
+    async def edit(
         self, path: str, old_string: str, new_string: str, replace_all: bool = False
     ) -> EditResult:
         """Edit a file by replacing strings."""
@@ -385,7 +385,7 @@ class LocalBackend:
         except OSError as e:  # pragma: no cover
             return EditResult(error=str(e))
 
-    def glob_info(self, pattern: str, path: str = ".") -> list[FileInfo]:
+    async def glob_info(self, pattern: str, path: str = ".") -> list[FileInfo]:
         """Find files matching a glob pattern."""
         try:
             base_path = self._validate_path(path)
@@ -417,7 +417,7 @@ class LocalBackend:
 
         return sorted(results, key=lambda x: x["path"])
 
-    def grep_raw(
+    async def grep_raw(
         self,
         pattern: str,
         path: str | None = None,
